@@ -197,7 +197,7 @@ if(druk_figuur_af=="ja") {
 afval_loc <- z # %>% distinct(afval,jaar, raper.naam, xcoord,ycoord, .keep_all = F)
 afval_loc_sf <- afval_loc %>%  st_as_sf(coords = c("xcoord","ycoord"),
                                        crs = 28992)
-if(druk_figuur_af==ja){
+if(druk_figuur_af=="ja"){
   # plot afval
   ggplot()+
     #geom_stars(data=ahn5_s, downsample = 20)+
@@ -214,9 +214,11 @@ loc_in_buurt <- loc_in_buurt %>% mutate(in_buurt = ifelse(is.na(BU_NAAM), F, T))
 #head(loc_in_buurt)
 #str(loc_in_buurt)
 
-# Check jaartallen
-with(z, table(raper.naam, jaar))
-with(loc_in_buurt, table(raper.naam, jaar))
+if(druk_figuur_af=="ja") {
+  # Check jaartallen
+  with(z, table(raper.naam, jaar))
+  with(loc_in_buurt, table(raper.naam, jaar))
+}
 
 # Opslaan van nuttige bestanden
 saveRDS(loc_in_buurt, file="Data/afval_coordinaten.rda")
@@ -238,7 +240,7 @@ v <- readRDS(file=paste0("Data/afvalgegevens_geo_", datumbestand, ".rda"))
 # 3.1 Inlezen en bekijken ---- 
 z <- readRDS(file=paste0("Data/afvalgegevens_geo_", datumbestand, ".rda"))
 
-if(druk_figuur_af==ja) {
+if(druk_figuur_af=="ja") {
   names(z)
   str(z)
   with(z, table(raper.naam, jaar))
@@ -261,7 +263,7 @@ if(druk_figuur_af==ja) {
 #
 # 3.2 Verbeteren 'main' ----
 
-if(druk_figuur_af==ja){
+if(druk_figuur_af=="ja"){
   levels(z$main)
   with(z, addmargins(table(main, jaar, useNA="ifany"), FUN=sum))
 }
@@ -282,15 +284,24 @@ z <- z %>% mutate(
              if_else(str_detect(main, "handhaving"), "handhaving", "onbekend"))))))))
 )
 
-if(druk_figuur_af==ja) {
+# Uitvoeren correctie
+z <- z %>% mutate(
+  main.uni = if_else(main%in%c("other mc", "checked by Joyce,other mc", "BlikOpStuk,other mc") & 
+    cat%in%c("dairy", "dairy,packaging material"), "drink, other", main.uni))
+
+if(druk_figuur_af=="ja") {
   # Checks
   levels(as.factor(z$main.uni))
   with(z, addmargins(table(main, main.uni, useNA="ifany"), FUN=sum))
-  with(as.data.frame(z %>% filter(main.uni=="onbekend") )%>% droplevels(), 
+  with(as.data.frame(z %>% filter(main.uni=="onbekend")) %>% droplevels(), 
        addmargins(table(main, main.uni, useNA="ifany"), FUN=sum))
   with(z, addmargins(table(main.uni, jaar, useNA="ifany"), FUN=sum))
   with(as.data.frame(z %>% filter(main.uni=="handhaving") )%>% droplevels(), 
        addmargins(table(main, main.uni, useNA="ifany"), FUN=sum))
+  # zie bij 'cat'
+  check <- z %>% filter(main%in%c("other mc", "checked by Joyce,other mc", "BlikOpStuk,other mc") & 
+                          cat%in%c("dairy", "dairy,packaging material")) %>% 
+    select(main, main.uni, cat, sub, object, material, brand, remark)  
 }
 
 # Verder vereenvoudiging i.v.m. reductie aantal klassen
@@ -305,29 +316,31 @@ if(reduc.gewenst %in% c("ja", "JA", "Ja", "jA")) {
     main.uni = if_else(main %in% c("BlikOpStuk,Drinks,handhaving", "checked by Joyce,Drinks,handhaving",
                                        "Drinks,handhaving"), "drinks", 
                if_else(main %in% c("Food,handhaving"), "food", 
-               if_else(main %in% c("checked by Joyce,handhaving,other mc", "Drinks,food & drinks,handhaving,other mc",
+               if_else(main %in% c("Drinks,food & drinks,handhaving,other mc",
                                        "Drinks,handhaving,other mc"), "food, drinks & other.mc", 
-               if_else(main %in% c("handhaving,other mc"), "other.mc", 
+               if_else(main %in% c("handhaving,other mc", "checked by Joyce,handhaving,other mc"), "other.mc", 
                if_else(main %in% c("handhaving"), "onbekend", main.uni)))))
   )
 }
 
-if(druk_figuur_af==ja){
+if(druk_figuur_af=="ja"){
   levels(as.factor(z$main.uni))
   with(z, addmargins(table(main, main.uni, useNA="ifany"), FUN=sum))
   with(z, addmargins(table(main.uni, jaar, useNA="ifany"), FUN=sum))
+  z %>% filter(main=="checked by Joyce,handhaving,other mc") %>% select(main, sub, cat, object, material, brand, remark)  
+  z %>% filter(main=="checked by Joyce,handhaving,other mc") %>% select(main, main.uni)
 }
 
 
 #
 # 3.3 Verbeteren 'cat' ----
 
-if(druk_figuur_af==ja){
+if(druk_figuur_af=="ja"){
   levels(z$cat)
-with(z, addmargins(table(cat, jaar, useNA="ifany"), FUN=sum))
+  with(z, addmargins(table(cat, jaar, useNA="ifany"), FUN=sum))
 }
 
-# Geuniformeerde 'cat' maken (van 109 naar 26)
+# Geuniformeerde 'cat' maken (van 109 naar 26); cat.uni
 z <- z %>% mutate(
   cat.uni = if_else(str_detect(cat, "alcohol"), "drinks, alcohol", 
             if_else(str_detect(cat, "energy drink"), "drinks, energy drink",
@@ -358,77 +371,94 @@ z <- z %>% mutate(
             if_else(str_detect(cat, "unknown")|str_detect(cat, "nakijken"), "unknown", "other")))))))))))))))))))))))
 )
 
-#check of alle cat in de gewenste 'cat.uni' zitten 
-levels(as.factor(z$cat.uni))
-with(z, addmargins(table(cat.uni, jaar, useNA="ifany"), FUN=sum))
-with(z %>% filter(cat.uni=="other"), table(cat, cat.uni))
-with(as.data.frame(z %>% filter(cat.uni=="drinks, alcohol")) %>% droplevels(), table(cat, cat.uni))
-with(as.data.frame(z %>% filter(cat.uni=="drinks, energy drink")) %>% droplevels(), table(cat, cat.uni))
-with(as.data.frame(z %>% filter(cat.uni=="drinks, juice")) %>% droplevels(), table(cat, cat.uni))
-with(as.data.frame(z %>% filter(cat.uni=="drinks, water")) %>% droplevels(), table(cat, cat.uni))
-with(as.data.frame(z %>% filter(cat.uni=="drinks, soft drink")) %>% droplevels(), table(cat, cat.uni))
-with(as.data.frame(z %>% filter(cat.uni=="drinks, coffee & tea")) %>% droplevels(), table(cat, cat.uni))
-with(as.data.frame(z %>% filter(cat.uni=="drinks, other")) %>% droplevels(), table(cat, cat.uni))
-with(as.data.frame(z %>% filter(cat.uni=="food, candy")) %>% droplevels(), table(cat, cat.uni))
-with(as.data.frame(z %>% filter(cat.uni=="food, chips")) %>% droplevels(), table(cat, cat.uni))
-with(as.data.frame(z %>% filter(cat.uni=="food, fastfood")) %>% droplevels(), table(cat, cat.uni))
-with(as.data.frame(z %>% filter(cat.uni=="food, ice.cream")) %>% droplevels(), table(cat, cat.uni))
-with(as.data.frame(z %>% filter(cat.uni=="food, cookie")) %>% droplevels(), table(cat, cat.uni))
-with(as.data.frame(z %>% filter(cat.uni=="smoking")) %>% droplevels(), table(cat, cat.uni))
-with(as.data.frame(z %>% filter(cat.uni=="medical, nacotics & chemicals")) %>% droplevels(), table(cat, cat.uni))
-with(as.data.frame(z %>% filter(cat.uni=="parts & construction")) %>% droplevels(), table(cat, cat.uni))
-with(as.data.frame(z %>% filter(cat.uni=="personal hygiene")) %>% droplevels(), table(cat, cat.uni))
-with(as.data.frame(z %>% filter(cat.uni=="tickets and receipts")) %>% droplevels(), table(cat, cat.uni))
-with(as.data.frame(z %>% filter(cat.uni=="presswork")) %>% droplevels(), table(cat, cat.uni))
-with(as.data.frame(z %>% filter(cat.uni=="leisure")) %>% droplevels(), table(cat, cat.uni))
-with(as.data.frame(z %>% filter(cat.uni=="clothing")) %>% droplevels(), table(cat, cat.uni))
-with(as.data.frame(z %>% filter(cat.uni=="packaging materials, other")) %>% droplevels(), table(cat, cat.uni))
-with(as.data.frame(z %>% filter(cat.uni=="unknown")) %>% droplevels(), table(cat, cat.uni))
+# Verbeteren cat.uni
+z <- z %>% mutate(
+  cat.uni = if_else(main.uni=="food" & cat.uni %in% c("other", "unknown"), "food, other", cat.uni)
+)
 
-# Check of er overeenstemming is tussen main.uni en cat.uni
-with(z %>% filter(main.uni=="drinks") %>% distinct(), table(cat.uni, main.uni))
-with(z %>% filter(main.uni=="food") %>% distinct(), table(cat.uni, main.uni))
-with(z %>% filter(main.uni=="food, drinks & other.mc") %>% distinct(), table(cat.uni, main.uni))
-with(z %>% filter(main.uni=="other.mc") %>% distinct(), table(cat.uni, main.uni))
-with(z %>% filter(main.uni=="onbekend") %>% distinct(), table(cat.uni, main.uni))
+if(druk_figuur_af=="ja"){
+  #check of alle cat in de gewenste 'cat.uni' zitten 
+  levels(as.factor(z$cat.uni))
+  with(z, addmargins(table(cat.uni, jaar, useNA="ifany"), FUN=sum))
+  # laat zien wel cats in cat.uni zitten per onderdeel  
+  with(as.data.frame(z %>% filter(cat.uni=="other")) %>% droplevels, table(cat, cat.uni))
+  with(as.data.frame(z %>% filter(cat.uni=="drinks, alcohol")) %>% droplevels(), table(cat, cat.uni))
+  with(as.data.frame(z %>% filter(cat.uni=="drinks, energy drink")) %>% droplevels(), table(cat, cat.uni))
+  with(as.data.frame(z %>% filter(cat.uni=="drinks, juice")) %>% droplevels(), table(cat, cat.uni))
+  with(as.data.frame(z %>% filter(cat.uni=="drinks, water")) %>% droplevels(), table(cat, cat.uni))
+  with(as.data.frame(z %>% filter(cat.uni=="drinks, soft drink")) %>% droplevels(), table(cat, cat.uni))
+  with(as.data.frame(z %>% filter(cat.uni=="drinks, coffee & tea")) %>% droplevels(), table(cat, cat.uni))
+  with(as.data.frame(z %>% filter(cat.uni=="drinks, other")) %>% droplevels(), table(cat, cat.uni))
+  with(as.data.frame(z %>% filter(cat.uni=="food, candy")) %>% droplevels(), table(cat, cat.uni))
+  with(as.data.frame(z %>% filter(cat.uni=="food, chips")) %>% droplevels(), table(cat, cat.uni))
+  with(as.data.frame(z %>% filter(cat.uni=="food, fastfood")) %>% droplevels(), table(cat, cat.uni))
+  with(as.data.frame(z %>% filter(cat.uni=="food, ice.cream")) %>% droplevels(), table(cat, cat.uni))
+  with(as.data.frame(z %>% filter(cat.uni=="food, cookie")) %>% droplevels(), table(cat, cat.uni))
+  with(as.data.frame(z %>% filter(cat.uni=="smoking")) %>% droplevels(), table(cat, cat.uni))
+  with(as.data.frame(z %>% filter(cat.uni=="medical, nacotics & chemicals")) %>% droplevels(), table(cat, cat.uni))
+  with(as.data.frame(z %>% filter(cat.uni=="parts & construction")) %>% droplevels(), table(cat, cat.uni))
+  with(as.data.frame(z %>% filter(cat.uni=="personal hygiene")) %>% droplevels(), table(cat, cat.uni))
+  with(as.data.frame(z %>% filter(cat.uni=="tickets and receipts")) %>% droplevels(), table(cat, cat.uni))
+  with(as.data.frame(z %>% filter(cat.uni=="presswork")) %>% droplevels(), table(cat, cat.uni))
+  with(as.data.frame(z %>% filter(cat.uni=="leisure")) %>% droplevels(), table(cat, cat.uni))
+  with(as.data.frame(z %>% filter(cat.uni=="clothing")) %>% droplevels(), table(cat, cat.uni))
+  with(as.data.frame(z %>% filter(cat.uni=="packaging materials, other")) %>% droplevels(), table(cat, cat.uni))
+  with(as.data.frame(z %>% filter(cat.uni=="unknown")) %>% droplevels(), table(cat, cat.uni))
+  
+  # Check of er overeenstemming is tussen main.uni en cat.uni
+  with(z %>% filter(main.uni=="drinks") %>% distinct(), table(cat.uni, main.uni))
+  with(z %>% filter(main.uni=="food") %>% distinct(), table(cat.uni, main.uni))
+  z %>% filter(main.uni=="food" & cat.uni=="other") %>% select(main, sub, cat, object, material, brand, remark)
+  z %>% filter(main.uni=="food" & cat.uni=="unknown") %>% select(main, sub, cat, object, material, brand, remark)
+  with(z %>% filter(main.uni=="food, drinks & other.mc") %>% distinct(), table(cat.uni, main.uni))
+  z %>% filter(main.uni=="food, drinks & other.mc" & cat.uni=="smoking") %>% select(main, sub, cat, object, material, brand, remark)  
+  z %>% filter(main.uni=="food, drinks & other.mc" & cat.uni=="smoking") %>% select(cat, cat.uni, main, main.uni)  
+  z %>% filter(main=="checked by Joyce,handhaving,other mc") %>% select(main, sub, cat, object, material, brand, remark)  
+  with(z %>% filter(main.uni=="other.mc") %>% distinct(), table(cat.uni, main.uni))
+  check.01 <- z %>% filter(main.uni=="other.mc" & cat.uni=="drinks, other") %>% select(main, sub, cat, object, material, brand, remark)
+  z %>% filter(main.uni=="other.mc" & cat.uni=="drinks, other" & cat!="dairy") %>% select(main, sub, cat, object, material, brand, remark)
+  check.02 <- z %>% filter(main%in%c("other mc", "checked by Joyce,other mc", "BlikOpStuk,other mc") & cat%in%c("dairy", "dairy,packaging material")) %>% select(main, main.uni, cat, cat.uni)  
+  with(z %>% filter(main.uni=="onbekend") %>% distinct(), table(cat.uni, main.uni))
+  
+  # Check
+  with(z, addmargins(table(cat.uni, raper.naam, useNA="ifany"), FUN=sum))
+  tab.smok <- as.data.frame.matrix(with(droplevels(as.data.frame(z %>% filter(cat.uni=="smoking"))), 
+                                        addmargins(table(brand, raper.naam, useNA="ifany"), FUN=sum)))
+  head(tab.smok %>% arrange(desc(sum)), 15)
+}
 
-
-# Check
-with(z, addmargins(table(cat.uni, raper.naam, useNA="ifany"), FUN=sum))
-tab.smok <- as.data.frame.matrix(with(droplevels(as.data.frame(z %>% filter(cat.uni=="smoking"))), 
-                                      addmargins(table(brand, raper.naam, useNA="ifany"), FUN=sum)))
-head(tab.smok %>% arrange(desc(sum)), 15)
 
 #
 # 3.4 Verbeteren 'sub' ----
 # nog verder uit te werken, veel werk, afhankelijk van vraag
 
-levels(z$sub)
-with(z, addmargins(table(sub, jaar, useNA="ifany"), FUN=sum))
-
-# Geuniformeerde 'sub' maken (van 160 naar 26)
-levels(as.factor(z$cat.uni))
-# cat = medicijnen etal
-with(as.data.frame(z %>% filter(cat.uni=="medical, nacotics & chemicals")) %>% droplevels(), 
-     addmargins(table(sub, jaar, useNA="ifany"), FUN=sum))
-
-# drinks
-with(as.data.frame(z %>% filter(str_detect(cat.uni, "drink")==TRUE)) %>% droplevels(), 
-     addmargins(table(sub, jaar, useNA="ifany"), FUN=sum))
-# alcohol
-with(as.data.frame(z %>% filter(cat.uni=="drinks, alcohol")) %>% droplevels(), table(sub, cat.uni))
-with(as.data.frame(z %>% filter(main.uni=="drinks")) %>% droplevels(), table(sub, cat.uni))
-# Koffie en thee
-with(as.data.frame(z %>% filter(cat.uni=="drinks, coffee & tea")) %>% droplevels(), table(sub, cat.uni))
-
-
-# Foods
-with(as.data.frame(z %>% filter(str_detect(cat.uni, "food")==TRUE)) %>% droplevels(), 
-     addmargins(table(sub, jaar, useNA="ifany"), FUN=sum))
-# smoking
-with(as.data.frame(z %>% filter(str_detect(cat.uni, "smoking")==TRUE)) %>% droplevels(), 
-     addmargins(table(sub, jaar, useNA="ifany"), FUN=sum))
-
+if(druk_figuur_af=="ja") {
+  levels(z$sub)
+  with(z, addmargins(table(sub, jaar, useNA="ifany"), FUN=sum))
+  
+  # Geuniformeerde 'sub' maken (van 160 naar 26)
+  levels(as.factor(z$cat.uni))
+  
+  # cat = medicijnen etal
+  with(as.data.frame(z %>% filter(cat.uni=="medical, nacotics & chemicals")) %>% droplevels(), 
+       addmargins(table(sub, jaar, useNA="ifany"), FUN=sum))
+  
+  # drinks
+  with(as.data.frame(z %>% filter(str_detect(cat.uni, "drink")==TRUE)) %>% droplevels(), 
+       addmargins(table(sub, jaar, useNA="ifany"), FUN=sum))
+  # alcohol
+  with(as.data.frame(z %>% filter(cat.uni=="drinks, alcohol")) %>% droplevels(), table(sub, cat.uni))
+  with(as.data.frame(z %>% filter(main.uni=="drinks")) %>% droplevels(), table(sub, cat.uni))
+  # Koffie en thee
+  with(as.data.frame(z %>% filter(cat.uni=="drinks, coffee & tea")) %>% droplevels(), table(sub, cat.uni))
+  
+  # Foods
+  with(as.data.frame(z %>% filter(str_detect(cat.uni, "food")==TRUE)) %>% droplevels(), 
+       addmargins(table(sub, jaar, useNA="ifany"), FUN=sum))
+  # smoking
+  with(as.data.frame(z %>% filter(str_detect(cat.uni, "smoking")==TRUE)) %>% droplevels(), 
+       addmargins(table(sub, jaar, useNA="ifany"), FUN=sum))
+}
 
 
 z <- z %>% mutate (
