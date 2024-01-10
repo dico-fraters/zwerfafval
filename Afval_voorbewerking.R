@@ -1,6 +1,6 @@
 #
 # Afvalgegevens voorbewerking
-# Versie: 15 november 2023
+# Versie: 10 januari 2024
 #
 
 # 1. Klaarmaken werkomgeving ----
@@ -21,8 +21,8 @@ pacman::p_load(Rmisc)
 pacman::p_load(tidyverse, sf, stars, readxl, writexl)
 
 # !!!! Geef datum en tijd bestand !!!! ----
-datumbestand <- "1-7-2023"  # voer naam in zoals in .csv-bestand is gegeven
-tijdbestand <- "20 26 19"
+datumbestand <- "9-1-2024"  # voer naam in zoals in .csv-bestand is gegeven
+tijdbestand <- "12 16 09"
 
 getwd()
 #setwd("~/R_scripts/zwerfafval")
@@ -380,7 +380,7 @@ if(druk_figuur_af=="ja"){
   #check of alle cat in de gewenste 'cat.uni' zitten 
   levels(as.factor(z$cat.uni))
   with(z, addmargins(table(cat.uni, jaar, useNA="ifany"), FUN=sum))
-  # laat zien wel cats in cat.uni zitten per onderdeel  
+  # laat zien welke cats in cat.uni zitten per onderdeel  
   with(as.data.frame(z %>% filter(cat.uni=="other")) %>% droplevels, table(cat, cat.uni))
   with(as.data.frame(z %>% filter(cat.uni=="drinks, alcohol")) %>% droplevels(), table(cat, cat.uni))
   with(as.data.frame(z %>% filter(cat.uni=="drinks, energy drink")) %>% droplevels(), table(cat, cat.uni))
@@ -475,79 +475,114 @@ z <- z %>% mutate (
             if_else(sub%in%c("sugar", "coffeemilk"), "koffie_toevoegingen", as.character(sub)))))))))))
 )
 
-levels(as.factor(z$sub.uni))
-with(z, addmargins(table(sub.uni, jaar, useNA="ifany"), FUN=sum))
-with(z %>% filter(sub.uni=="other"), table(sub, sub.uni))
+if(druk_figuur_af=="ja") {
+  levels(as.factor(z$sub.uni))
+  with(z, addmargins(table(sub.uni, jaar, useNA="ifany"), FUN=sum))
+  with(z %>% filter(sub.uni=="other"), table(sub, sub.uni))
+  
+  with(as.data.frame(z %>% filter(sub.uni=="androgel")) %>% droplevels(), table(sub, sub.uni))
+  
+  with(as.data.frame(z %>% filter(cat.uni=="drinks, alcohol")) %>% droplevels(), table(sub.uni, cat.uni))
+  with(as.data.frame(z %>% filter(cat.uni=="drinks, coffee & tea")) %>% droplevels(), table(sub.uni, sub))
+  
+  with(as.data.frame(z %>% filter(main.uni=="drinks")) %>% droplevels(), table(sub.uni, sub))
+  
+  tab.sub <- as.data.frame.matrix(with(z, addmargins(table(sub, sub.uni, useNA="ifany"), FUN=sum)) )
+  names(tab.sub)[ncol(tab.sub)-1] <- "geen.info"
+  as_tibble(tab.sub, rownames = "NA") %>% print(n=Inf)
+  
+  # Check
+  with(z, addmargins(table(sub.uni, raper.naam, useNA="ifany"), FUN=sum))
+  tab.sub <- as.data.frame.matrix(with(z, addmargins(table(sub.uni, raper.naam, useNA="ifany"), FUN=sum)))
+  head(tab.sub %>% arrange(desc(sum)), 15)
+  
+}
 
-with(as.data.frame(z %>% filter(sub.uni=="androgel")) %>% droplevels(), table(sub, sub.uni))
-
-with(as.data.frame(z %>% filter(cat.uni=="drinks, alcohol")) %>% droplevels(), table(sub.uni, cat.uni))
-with(as.data.frame(z %>% filter(cat.uni=="drinks, coffee & tea")) %>% droplevels(), table(sub.uni, sub))
-
-with(as.data.frame(z %>% filter(main.uni=="drinks")) %>% droplevels(), table(sub.uni, sub))
-
-
-tab.sub <- as.data.frame.matrix(with(z, addmargins(table(sub, sub.uni, useNA="ifany"), FUN=sum)) )
-names(tab.sub)[ncol(tab.sub)-1] <- "geen.info"
-as_tibble(tab.sub, rownames = "NA") %>% print(n=Inf)
-
-# Check
-with(z, addmargins(table(sub.uni, raper.naam, useNA="ifany"), FUN=sum))
-tab.sub <- as.data.frame.matrix(with(z, addmargins(table(sub.uni, raper.naam, useNA="ifany"), FUN=sum)))
-head(tab.sub %>% arrange(desc(sum)), 15)
 
 #
 # 3.5 Verbeteren 'object' ----
-levels(z$object)
-with(z, addmargins(table(object, jaar, useNA="ifany"), FUN=sum))
 
-tab.obj <- as.data.frame.matrix(with(z, addmargins(table(object, raper.naam, useNA="ifany"), FUN=sum)))
-head(tab.obj %>% arrange(desc(sum)), 20)
+if(druk_figuur_af=="ja") {
+  levels(z$object)
+  with(z, addmargins(table(object, jaar, useNA="ifany"), FUN=sum))
+  
+  tab.obj <- as.data.frame.matrix(with(z, addmargins(table(object, raper.naam, useNA="ifany"), FUN=sum)))
+  head(tab.obj %>% arrange(desc(sum)), 20)
+  
+}
 
+# Ordenen van 'wrappers' 
 z <- z %>% mutate (
   object.uni = if_else(object%in%c("candy wrapper,wrapper", "chewinggum wrapper", "chewinggum package,wrapper",
                                    "lollipop stick,wrapper", "lollipop wrapper") | 
                          str_detect(object, "candy wrapper"), "wrapper, candy", 
-              if_else(str_detect(object, "cookie"), "wrapper, cookie", 
-              if_else(str_detect(object, "candy b")|str_detect(object, "candy p"), "package, candy", 
-              if_else(object%in%c("wrapper", "wrapper piece", "piece,wrapper"), "wrapper, unknown", 
-              if_else(object%in%c("cigarette butt,wrapper", "cigarette box,wrapper", "wrapper cigarette box" ,
-                                  "vape package,wrapper", "shag pack,wrapper", "lighter,wrapper"), 
-                      "wrapper, smoking", 
-             if_else(object%in%c("straw,straw wrapper", "straw wrapper", "bottle,wrapper", "can,wrapper",
-                                 "drink carton,wrapper", "milk carton,wrapper", "bottle wrapper",
-                                 "tea bag wrapper", "cup lid,wrapper", "cup,package,wrapper", "glasses,wrapper"),
-                     "wrapper, drink", 
-             if_else(object%in%c("ice cream stick,wrapper", "ice cream wrapper", "chopsticks wrapper", 
-                                 "cake wrapper"),
-                     "wrapper, food", 
-             if_else(object %in% c("condom wrapper", "condom package", "condom,condom package", "condom,package", 
-                                   "bag,container,wrapper", "bag plant feed,wrapper", "bag,wrapper", "bag,wrapper",
-                                   "mouthcap package", "mouthcap,wrapper", "cocaine wrapper", "toy,wrapper"), "wrapper, other", 
-             if_else(object %in% c("wet wipe package,wrapper", "wet wipe package", "dashboardwipes,wrapper"), "wrapper, wipes", as.character(object))))))))))
+               if_else(str_detect(object, "cookie"), "wrapper, cookie", 
+               if_else(str_detect(object, "candy b")|str_detect(object, "candy p"), "package, candy", 
+               if_else(object%in%c("wrapper", "wrapper piece", "piece,wrapper",
+                                   "small piece,wrapper"), "wrapper, unknown", 
+               if_else(object%in%c("cigarette butt,wrapper", "cigarette box,wrapper", "wrapper cigarette box" ,
+                                   "vape package,wrapper", "shag pack,wrapper", "lighter,wrapper", 
+                                   "cigarette box,wrapper cigarette box"), 
+                       "wrapper, smoking", 
+               if_else(object%in%c("straw,straw wrapper", "straw wrapper", "bottle,wrapper", "can,wrapper",
+                                   "drink carton,wrapper", "milk carton,wrapper", "bottle wrapper",
+                                   "tea bag wrapper", "cup lid,wrapper", "cup,package,wrapper", "glasses,wrapper",
+                                   "bottle,package,wrapper", "straw wrapper,wrapper", "bag,straw wrapper",
+                                   "bottle,bottlecap,can,cap,cigarette butt,cup,straw,wrapper",
+                                   "bag,bottle,cigarette butt,cup,plastic bag,straw,wrapper", "straw,wrapper",
+                                   "champagnecorkwrapper"),
+                       "wrapper, drink", 
+               if_else(object%in%c("ice cream stick,wrapper", "ice cream wrapper", "chopsticks wrapper", 
+                                   "cake wrapper"),
+                       "wrapper, food", 
+               if_else(object %in% c("condom wrapper", "condom package", "condom,condom package", "condom,package", 
+                                     "bag,container,wrapper", "bag plant feed,wrapper", "bag,wrapper", "bag,wrapper",
+                                     "mouthcap package", "mouthcap,wrapper", "cocaine wrapper", "toy,wrapper",
+                                     "pregnancy test,wrapper", "silicagelpackage,wrapper", "band aid wrapper"), 
+                       "wrapper, other", 
+               if_else(object %in% c("wet wipe package,wrapper", "wet wipe package", "dashboardwipes,wrapper",
+                                     "sanitary napkin,wrapper"), 
+                       "wrapper, wipes", as.character(object))))))))))
 )
-z%>%filter(str_detect(object.uni, "wrapper")) %>% distinct(object.uni)
-levels(as.factor(z$object.uni))
-levels(as.factor(z$object))
 
-with(z%>%filter(str_detect(object.uni, "wrapper")), addmargins(table(object.uni, jaar), FUN=sum))
-with(as.data.frame(z%>%filter(object.uni=="wrapper, other")) %>% droplevels(), 
-     addmargins(table(object, jaar), FUN=sum))
+if(druk_figuur_af=="ja"){
+  z%>%filter(str_detect(object.uni, "wrapper")) %>% distinct(object.uni)
+  levels(as.factor(z$object.uni))
+  levels(as.factor(z$object))
+  
+  with(z%>%filter(str_detect(object.uni, "wrapper")), addmargins(table(object.uni, jaar), FUN=sum))
+  with(as.data.frame(z%>%filter(object.uni=="wrapper, other")) %>% droplevels(), 
+       addmargins(table(object, jaar), FUN=sum))
+  
+  
+  tab.obju <- as.data.frame.matrix(with(z, addmargins(table(object.uni, raper.naam, useNA="ifany"), FUN=sum)))
+  head(tab.obju %>% arrange(desc(sum)), 20)
+  
+  z%>%filter(str_detect(object, "wrapper")) %>% distinct(object)
+  
+  z%>%filter(! str_detect(object, "wrapper")) %>% distinct(object)
+  z%>%filter(str_detect(object, "bottlecap")) %>% distinct(object)
+  
+}
 
 
-tab.obju <- as.data.frame.matrix(with(z, addmargins(table(object.uni, raper.naam, useNA="ifany"), FUN=sum)))
-head(tab.obju %>% arrange(desc(sum)), 20)
+z <- z %>% mutate (
+  object.uni = if_else(str_detect(object.uni, "bottlecap")==TRUE, "bottlecap", object.uni)
+  )
 
-z%>%filter(str_detect(object, "wrapper")) %>% distinct(object)
-
+if(druk_figuur_af=="ja"){
+  with(as.data.frame(z%>%filter(str_detect(object.uni, "bottlecap"))) %>% droplevels(), table(object, object.uni)) 
+}
 
 #
 # 3.6 Verbeteren 'materiaal' ----
-levels(z$material)
-with(z, addmargins(table(material, jaar, useNA="ifany"), FUN=sum))
-
-tab.mat <- as.data.frame.matrix(with(z %>% filter(is.na(material)==FALSE), addmargins(table(material, raper.naam, useNA="ifany"), FUN=sum)))
-head(tab.mat %>% arrange(desc(sum)), 20)
+if(druk_figuur_af=="ja"){
+  levels(z$material)
+  with(z, addmargins(table(material, jaar, useNA="ifany"), FUN=sum))
+  
+  tab.mat <- as.data.frame.matrix(with(z %>% filter(is.na(material)==FALSE), addmargins(table(material, raper.naam, useNA="ifany"), FUN=sum)))
+  head(tab.mat %>% arrange(desc(sum)), 20)
+}
 
 z <- z %>% mutate (
   material.uni = if_else(str_detect(str_sub(material,1,7), "plastic") | str_detect(str_sub(material,1,7), "hard pl") |
@@ -559,7 +594,8 @@ z <- z %>% mutate (
                 if_else(str_detect(str_sub(material,1,7), "glass"), "glass", 
                 if_else(str_detect(str_sub(material,1,7), "metal") | str_detect(str_sub(material,1,7), "iron"), "metal", 
                 if_else(str_detect(str_sub(material,1,7), "cellulo"), "cellulose acetate", 
-                if_else(str_detect(str_sub(material,1,7), "card") | str_detect(str_sub(material,1,7), "karton"), "cardboard", 
+                if_else(str_detect(str_sub(material,1,7), "card") | str_detect(str_sub(material,1,7), "karton") |
+                          material%in%c("hardboard"), "cardboard", 
                 if_else(str_detect(str_sub(material,1,7), "foam") | str_detect(str_sub(material,1,7), "poly") | 
                           str_detect(str_sub(material,1,7), "piepsch") | str_detect(str_sub(material,1,7), "styrofo"), "foam", 
                 if_else(str_detect(str_sub(material,1,7), "gelamin") | str_detect(str_sub(material,1,10), "papier/kar"), "laminated cardboard", 
@@ -567,45 +603,53 @@ z <- z %>% mutate (
                           str_detect(str_sub(material,1,10), "elastic"), "latex", 
                 if_else(str_detect(str_sub(material,1,7), "cork") | str_detect(str_sub(material,1,7), "cotton") |
                          str_detect(str_sub(material,1,7), "leather") | str_detect(str_sub(material,1,7), "organic") | 
-                         material%in%c("wood", "wool", "vilt", "wax"), "natural", 
-                if_else(material%in%c("porcelain", "beton", "stone"), "stone & clay", 
-                if_else(material%in%c("stof nstax", "material unknown"), "unknown", as.character(material)))))))))))))))
+                         material%in%c("wood", "wool", "vilt", "wax", "vilt,wood"), "natural", 
+                if_else(material%in%c("porcelain", "beton", "stone", "gips"), "stone & clay", 
+                if_else(material%in%c("stof nstax", "material unknown", "fibre"), "unknown", as.character(material)))))))))))))))
 )
 
-with(as.data.frame(z%>%filter(material.uni=="plastic")) %>% droplevels(), table(material, jaar))
-with(as.data.frame(z%>%filter(material.uni=="paper")) %>% droplevels(), table(material, jaar))
-with(as.data.frame(z%>%filter(material.uni=="fabric")) %>% droplevels(), table(material, jaar))
-with(as.data.frame(z%>%filter(material.uni=="glass")) %>% droplevels(), table(material, jaar))
-with(as.data.frame(z%>%filter(material.uni=="metal")) %>% droplevels(), table(material, jaar))
-with(as.data.frame(z%>%filter(material.uni=="cellulose acetate")) %>% droplevels(), table(material, jaar))
-with(as.data.frame(z%>%filter(material.uni=="cardboard")) %>% droplevels(), table(material, jaar))
-with(as.data.frame(z%>%filter(material.uni=="foam")) %>% droplevels(), table(material, jaar))
-with(as.data.frame(z%>%filter(material.uni=="laminated cardboard")) %>% droplevels(), table(material, jaar))
-with(as.data.frame(z%>%filter(material.uni=="latex")) %>% droplevels(), table(material, jaar))
-with(as.data.frame(z%>%filter(material.uni=="natural")) %>% droplevels(), table(material, jaar))
-
-levels(as.factor(z$material.uni))
-with(z, addmargins(table(material.uni, jaar, useNA="ifany"), FUN=sum))
-tab.mat.uni <- as.data.frame.matrix(with(z %>% filter(is.na(material.uni)==FALSE), addmargins(table(material.uni, raper.naam, useNA="ifany"), FUN=sum)))
-head(tab.mat.uni %>% arrange(desc(sum)), 20)
-
-levels(as.factor(z$BU_NAAM))
-tab.mat.uni <- as.data.frame.matrix(with(z %>% filter(is.na(material.uni)==FALSE & 
-                                                        BU_NAAM %in% c("Brandenburg", "Tuindorp", "De Bilt West", "De Bilt Oost")), 
-                                         addmargins(table(material.uni,BU_NAAM, useNA="ifany"), FUN=sum)))
-head(tab.mat.uni %>% arrange(desc(sum)), 20)
-
+if(druk_figuur_af=="ja"){
+  with(as.data.frame(z%>%filter(material.uni=="plastic")) %>% droplevels(), table(material, jaar))
+  with(as.data.frame(z%>%filter(material.uni=="paper")) %>% droplevels(), table(material, jaar))
+  with(as.data.frame(z%>%filter(material.uni=="fabric")) %>% droplevels(), table(material, jaar))
+  with(as.data.frame(z%>%filter(material.uni=="glass")) %>% droplevels(), table(material, jaar))
+  with(as.data.frame(z%>%filter(material.uni=="metal")) %>% droplevels(), table(material, jaar))
+  with(as.data.frame(z%>%filter(material.uni=="cellulose acetate")) %>% droplevels(), table(material, jaar))
+  with(as.data.frame(z%>%filter(material.uni=="cardboard")) %>% droplevels(), table(material, jaar))
+  with(as.data.frame(z%>%filter(material.uni=="foam")) %>% droplevels(), table(material, jaar))
+  with(as.data.frame(z%>%filter(material.uni=="laminated cardboard")) %>% droplevels(), table(material, jaar))
+  with(as.data.frame(z%>%filter(material.uni=="latex")) %>% droplevels(), table(material, jaar))
+  with(as.data.frame(z%>%filter(material.uni=="natural")) %>% droplevels(), table(material, jaar))
+  with(as.data.frame(z%>%filter(material.uni=="unknown")) %>% droplevels(), table(material, jaar))
+  with(as.data.frame(z%>%filter(material.uni=="stone & clay")) %>% droplevels(), table(material, jaar))
+  with(as.data.frame(z%>%filter(material.uni=="aluminium")) %>% droplevels(), table(material, jaar))
+  
+  levels(as.factor(z$material.uni))
+  with(z, addmargins(table(material.uni, jaar, useNA="ifany"), FUN=sum))
+  tab.mat.uni <- as.data.frame.matrix(with(z %>% filter(is.na(material.uni)==FALSE), addmargins(table(material.uni, raper.naam, useNA="ifany"), FUN=sum)))
+  head(tab.mat.uni %>% arrange(desc(sum)), 20)
+  
+  
+  levels(as.factor(z$BU_NAAM))
+  tab.mat.uni <- as.data.frame.matrix(with(z %>% filter(is.na(material.uni)==FALSE & 
+                                                          BU_NAAM %in% c("Brandenburg", "Tuindorp", "De Bilt West", "De Bilt Oost")), 
+                                           addmargins(table(material.uni,BU_NAAM, useNA="ifany"), FUN=sum)))
+  head(tab.mat.uni %>% arrange(desc(sum)), 20)
+}
 
 #
 # 3.7 Verbeteren 'merk' ----
 # te doen, veel werk, afhankelijk van vraag
-z %>% distinct(brand) 
-with(as.data.frame(z%>%filter(object.uni=="can"))%>%droplevels(), addmargins(table(brand, jaar, useNA="ifany"), FUN=sum))
 
-tab.mat <- as.data.frame.matrix(with(z %>% filter(is.na(brand)==FALSE), addmargins(table(brand, raper.naam, useNA="ifany"), FUN=sum)))
-head(tab.mat %>% arrange(desc(sum)), 20)
-
-str(z)
+if(druk_figuur_af=="ja") {
+  z %>% distinct(brand) 
+  with(as.data.frame(z%>%filter(object.uni=="can"))%>%droplevels(), addmargins(table(brand, jaar, useNA="ifany"), FUN=sum))
+  
+  tab.mat <- as.data.frame.matrix(with(z %>% filter(is.na(brand)==FALSE), addmargins(table(brand, raper.naam, useNA="ifany"), FUN=sum)))
+  head(tab.mat %>% arrange(desc(sum)), 20)
+  
+  str(z)
+}
 
 #
 # 3.8 Samenvoegen buurten tot 'wijken' ----
@@ -645,110 +689,111 @@ write_xlsx(z, path=paste0("c:/Users/Dico Fraters/Documents/Afval_verzamelen/data
 
 
 ###### Vanaf hier enkele test om te checken of kaartenmaken werkt ########
-
-# plot postcode bedrijven (incl kleur per plat)
-ggplot()+
-  #geom_stars(data=ahn5_s, downsample = 20)+
-  #scale_fill_gradientn(colours = terrain.colors(6))+
-  geom_sf(data=DeBilt_eo, fill = NA, lwd = 1, color = "black")+
-  geom_sf(data= loc_in_buurt, aes(color = GM_NAAM))+
-  ggtitle("Afval geraapt per gemeente")
-
-
-# Inzoomend op gemeente De Bilt:
-bbox <- DeBilt_eo %>% filter(GM_NAAM == "De Bilt") %>% st_bbox()
-bdat <- loc_in_buurt%>% filter(GM_NAAM == "De Bilt") 
-
-# https://r-spatial.org/r/2018/10/25/ggplot2-sf.html
-png("c:/Users/Dico Fraters/Documents/Afval_verzamelen/plaatjes/Afval_DeBilt_2019-2023april.png", 
-    width = 5000, height = 4000, units = "px")
-par(mar=c(2,4,4,1), mai=c(0,0,0,0))
-ggplot()+
-  theme_bw() + 
-  geom_sf(data=DeBilt_eo%>%filter(GM_NAAM=="De Bilt"), 
-          fill = NA, lwd = 3, color = "black") +
-  geom_sf(data=bdat["BU_NAAM"], aes(color=BU_NAAM), size=10)+
-  coord_sf(xlim = c(bbox[1], bbox[3]), ylim = c(bbox[2], bbox[4]))+
-  #geom_sf_label(data=DeBilt_eo, aes(label = GM_NAAM), alpha = 0.7)+
-  ggtitle("Afval in De Bilt 2019-2023 (deels)") +
-  labs(color='Buurten in De Bilt') +
-  theme(
-    title=element_text(size=80, face="bold"),
-    axis.text=element_text(size=60),
-    legend.title= element_text(size=70),
-    legend.text=element_text(size=60)) 
-dev.off()
-
-BiltBilthoven <- c("Bilthoven Centrum", "Bilthoven Noord I", "Bilthoven Noord II", 
-                   "Brandenburg", "De Bilt Oost", "De Bilt West", "De Bilt Zuid",
-                   "De Leijen", "Tuindorp")
-
-# Inzoomend op dorpen De Bilt - Bilthoven:
-bbox.1 <- DeBilt_eo %>% filter(BU_NAAM %in% BiltBilthoven) %>% st_bbox()
-bdat.1 <- loc_in_buurt%>% filter(BU_NAAM %in% BiltBilthoven) 
-
-png("c:/Users/Dico Fraters/Documents/Afval_verzamelen/plaatjes/Afval_DeBiltBilhoven_2019-2023april.png", 
-    width = 5000, height = 4000, units = "px")
-par(mar=c(2,4,4,1), mai=c(0,0,0,0))
-ggplot()+
-  theme_bw() + 
-  geom_sf(data=DeBilt_eo%>%filter(BU_NAAM %in% BiltBilthoven), 
-          fill = NA, lwd = 3, color = "black") +
-  geom_sf(data=bdat.1["BU_NAAM"], aes(color=BU_NAAM), size=10)+
-  coord_sf(xlim = c(bbox.1[1], bbox.1[3]), ylim = c(bbox.1[2], bbox.1[4]))+
-  #geom_sf_label(data=DeBilt_eo, aes(label = GM_NAAM), alpha = 0.7)+
-  ggtitle("Afval in De Bilt - Bilthoven 2019-2023 (deels)") +
-  labs(color='Buurten in De Bilt') +
-  theme(
-    title=element_text(size=80, face="bold"),
-    axis.text=element_text(size=60),
-    legend.title= element_text(size=70),
-    legend.text=element_text(size=60)) 
-dev.off()
-
-# Inzoomend op 2023 in dorpen De Bilt - Bilthoven:
-bbox.2 <- DeBilt_eo %>% filter(BU_NAAM %in% BiltBilthoven ) %>% st_bbox()
-bdat.2 <- loc_in_buurt%>% filter(BU_NAAM %in% BiltBilthoven & jaar==2023) 
-
-png("c:/Users/Dico Fraters/Documents/Afval_verzamelen/plaatjes/Afval_DeBiltBilhoven_2023april.png", 
-    width = 5000, height = 4000, units = "px")
-par(mar=c(2,4,4,1), mai=c(0,0,0,0))
-ggplot()+
-  theme_bw() + 
-  geom_sf(data=DeBilt_eo%>%filter(BU_NAAM %in% BiltBilthoven), 
-          fill = NA, lwd = 3, color = "black") +
-  geom_sf(data=bdat.2["BU_NAAM"], aes(color=BU_NAAM), size=10)+
-  coord_sf(xlim = c(bbox.2[1], bbox.2[3]), ylim = c(bbox.2[2], bbox.2[4]))+
-  #geom_sf_label(data=DeBilt_eo, aes(label = GM_NAAM), alpha = 0.7)+
-  ggtitle("Afval in De Bilt - Bilthoven 2023 (deels)") +
-  labs(color='Rapers in De Bilt') +
-  theme(
-    title=element_text(size=80, face="bold"),
-    axis.text=element_text(size=60),
-    legend.title= element_text(size=70),
-    legend.text=element_text(size=60)) 
-dev.off()
-
-# Inzoomend op 2023 in dorpen De Bilt - Bilthoven:
-bbox.3 <- DeBilt_eo %>% filter(BU_NAAM %in% BiltBilthoven ) %>% st_bbox()
-bdat.3 <- v%>% filter(BU_NAAM %in% BiltBilthoven & jaar==2023) 
-
-png("c:/Users/Dico Fraters/Documents/Afval_verzamelen/plaatjes/Afval_DeBiltBilhoven_raper_2023.png", 
-    width = 5000, height = 4000, units = "px")
-par(mar=c(2,4,4,1), mai=c(0,0,0,0))
-ggplot()+
-  theme_bw() + 
-  geom_sf(data=DeBilt_eo%>%filter(BU_NAAM %in% BiltBilthoven), 
-          fill = NA, lwd = 3, color = "black") +
-  geom_sf(data=bdat.3["raper.naam"], aes(color=raper.naam), size=10) +
-  coord_sf(xlim = c(bbox.3[1], bbox.3[3]), ylim = c(bbox.3[2], bbox.3[4]))+
-  #geom_sf_label(data=DeBilt_eo, aes(label = GM_NAAM), alpha = 0.7)+
-  ggtitle("Afval in De Bilt - Bilthoven 2023 (deels)") +
-  labs(color='Rapers in De Bilt') +
-  theme(
-    title=element_text(size=80, face="bold"),
-    axis.text=element_text(size=60),
-    legend.title= element_text(size=70),
-    legend.text=element_text(size=60)) 
-dev.off()
+if(druk_figuur_af=="ja"){
+  # plot postcode bedrijven (incl kleur per plat)
+  ggplot()+
+    #geom_stars(data=ahn5_s, downsample = 20)+
+    #scale_fill_gradientn(colours = terrain.colors(6))+
+    geom_sf(data=DeBilt_eo %>% filter(jaar==2023), fill = NA, lwd = 1, color = "black")+
+    geom_sf(data= loc_in_buurt, aes(color = GM_NAAM))+
+    ggtitle("Afval geraapt per gemeente")
+  
+  
+  # Inzoomend op gemeente De Bilt:
+  bbox <- DeBilt_eo %>% filter(GM_NAAM == "De Bilt") %>% st_bbox()
+  bdat <- loc_in_buurt%>% filter(GM_NAAM == "De Bilt") 
+  
+  # https://r-spatial.org/r/2018/10/25/ggplot2-sf.html
+  png("c:/Users/Dico Fraters/Documents/Afval_verzamelen/plaatjes/Afval_DeBilt_2023.png", 
+      width = 5000, height = 4000, units = "px")
+  par(mar=c(2,4,4,1), mai=c(0,0,0,0))
+  ggplot()+
+    theme_bw() + 
+    geom_sf(data=DeBilt_eo%>%filter(GM_NAAM=="De Bilt"), 
+            fill = NA, lwd = 3, color = "black") +
+    geom_sf(data=bdat["BU_NAAM"], aes(color=BU_NAAM), size=10)+
+    coord_sf(xlim = c(bbox[1], bbox[3]), ylim = c(bbox[2], bbox[4]))+
+    #geom_sf_label(data=DeBilt_eo, aes(label = GM_NAAM), alpha = 0.7)+
+    ggtitle("Afval in De Bilt in 2023") +
+    labs(color='Buurten in De Bilt') +
+    theme(
+      title=element_text(size=80, face="bold"),
+      axis.text=element_text(size=60),
+      legend.title= element_text(size=70),
+      legend.text=element_text(size=60)) 
+  dev.off()
+  
+  BiltBilthoven <- c("Bilthoven Centrum", "Bilthoven Noord I", "Bilthoven Noord II", 
+                     "Brandenburg", "De Bilt Oost", "De Bilt West", "De Bilt Zuid",
+                     "De Leijen", "Tuindorp")
+  
+  # Inzoomend op dorpen De Bilt - Bilthoven:
+  bbox.1 <- DeBilt_eo %>% filter(BU_NAAM %in% BiltBilthoven) %>% st_bbox()
+  bdat.1 <- loc_in_buurt%>% filter(BU_NAAM %in% BiltBilthoven) 
+  
+  png("c:/Users/Dico Fraters/Documents/Afval_verzamelen/plaatjes/Afval_DeBiltBilhoven_2019-2023april.png", 
+      width = 5000, height = 4000, units = "px")
+  par(mar=c(2,4,4,1), mai=c(0,0,0,0))
+  ggplot()+
+    theme_bw() + 
+    geom_sf(data=DeBilt_eo%>%filter(BU_NAAM %in% BiltBilthoven), 
+            fill = NA, lwd = 3, color = "black") +
+    geom_sf(data=bdat.1["BU_NAAM"], aes(color=BU_NAAM), size=10)+
+    coord_sf(xlim = c(bbox.1[1], bbox.1[3]), ylim = c(bbox.1[2], bbox.1[4]))+
+    #geom_sf_label(data=DeBilt_eo, aes(label = GM_NAAM), alpha = 0.7)+
+    ggtitle("Afval in De Bilt - Bilthoven 2019-2023 (deels)") +
+    labs(color='Buurten in De Bilt') +
+    theme(
+      title=element_text(size=80, face="bold"),
+      axis.text=element_text(size=60),
+      legend.title= element_text(size=70),
+      legend.text=element_text(size=60)) 
+  dev.off()
+  
+  # Inzoomend op 2023 in dorpen De Bilt - Bilthoven:
+  bbox.2 <- DeBilt_eo %>% filter(BU_NAAM %in% BiltBilthoven ) %>% st_bbox()
+  bdat.2 <- loc_in_buurt%>% filter(BU_NAAM %in% BiltBilthoven & jaar==2023) 
+  
+  png("c:/Users/Dico Fraters/Documents/Afval_verzamelen/plaatjes/Afval_DeBiltBilhoven_2023april.png", 
+      width = 5000, height = 4000, units = "px")
+  par(mar=c(2,4,4,1), mai=c(0,0,0,0))
+  ggplot()+
+    theme_bw() + 
+    geom_sf(data=DeBilt_eo%>%filter(BU_NAAM %in% BiltBilthoven), 
+            fill = NA, lwd = 3, color = "black") +
+    geom_sf(data=bdat.2["BU_NAAM"], aes(color=BU_NAAM), size=10)+
+    coord_sf(xlim = c(bbox.2[1], bbox.2[3]), ylim = c(bbox.2[2], bbox.2[4]))+
+    #geom_sf_label(data=DeBilt_eo, aes(label = GM_NAAM), alpha = 0.7)+
+    ggtitle("Afval in De Bilt - Bilthoven 2023 (deels)") +
+    labs(color='Rapers in De Bilt') +
+    theme(
+      title=element_text(size=80, face="bold"),
+      axis.text=element_text(size=60),
+      legend.title= element_text(size=70),
+      legend.text=element_text(size=60)) 
+  dev.off()
+  
+  # Inzoomend op 2023 in dorpen De Bilt - Bilthoven:
+  bbox.3 <- DeBilt_eo %>% filter(BU_NAAM %in% BiltBilthoven ) %>% st_bbox()
+  bdat.3 <- v%>% filter(BU_NAAM %in% BiltBilthoven & jaar==2023) 
+  
+  png("c:/Users/Dico Fraters/Documents/Afval_verzamelen/plaatjes/Afval_DeBiltBilhoven_raper_2023.png", 
+      width = 5000, height = 4000, units = "px")
+  par(mar=c(2,4,4,1), mai=c(0,0,0,0))
+  ggplot()+
+    theme_bw() + 
+    geom_sf(data=DeBilt_eo%>%filter(BU_NAAM %in% BiltBilthoven), 
+            fill = NA, lwd = 3, color = "black") +
+    geom_sf(data=bdat.3["raper.naam"], aes(color=raper.naam), size=10) +
+    coord_sf(xlim = c(bbox.3[1], bbox.3[3]), ylim = c(bbox.3[2], bbox.3[4]))+
+    #geom_sf_label(data=DeBilt_eo, aes(label = GM_NAAM), alpha = 0.7)+
+    ggtitle("Afval in De Bilt - Bilthoven 2023 (deels)") +
+    labs(color='Rapers in De Bilt') +
+    theme(
+      title=element_text(size=80, face="bold"),
+      axis.text=element_text(size=60),
+      legend.title= element_text(size=70),
+      legend.text=element_text(size=60)) 
+  dev.off()
+}
 
