@@ -1,0 +1,242 @@
+---
+title: "Zwerfafval in de Gemeente De Bilt"
+subtitle: "Status 2023 en trend 2017-2023"
+author: "Dico Fraters"
+
+
+header-includes:
+# Maak het mogelijk om individuele pagina's als landscape weer te geven
+# https://stackoverflow.com/questions/77142514/how-to-rotate-a-single-page-to-landscape-in-r-markdown-pdf-output
+# https://tex.stackexchange.com/questions/444913/how-do-i-rotate-a-header-and-footer-in-latex-landscape-page
+- \usepackage[usegeometry]{typearea}
+- \usepackage{geometry}
+# 
+- \usepackage[twoside]{fancyhdr}
+- \usepackage{titling, titlesec, xcolor, lipsum}
+- \pagestyle{fancy}
+- \fancyhead{}% remove default header entries
+- \fancyhead[LO,RE]{Zwerfafval De Bilt, 2023}
+- \fancyheadoffset{0pt}
+
+# A title page image should be above me:
+#   https://stackoverflow.com/questions/29389149/add-image-in-title-page-of-rmarkdown-pdf
+- \pretitle{\begin{center}\LARGE\includegraphics[width=14cm]{Figuren/Zwerfafval_deBilt_2023.png}\\[\bigskipamount]}
+- \posttitle{\end{center}}
+
+# Herdefinieer namen
+# https://tex.stackexchange.com/questions/82993/how-to-change-the-name-of-document-elements-like-figure-contents-bibliogr
+# https://stackoverflow.com/questions/47173279/internationalization-r-knitr-figure-caption-label
+- \renewcommand{\figurename}{Figuur}
+- \renewcommand{\tablename}{Tabel}
+- \renewcommand{\contentsname}{Inhoud}
+
+# placering van figuren
+- \usepackage{float} #use the 'float' package
+- \floatplacement{figure}{H} #make every figure with caption = h
+
+# minimaliseren/uitzetten hyphenation
+# https://tex.stackexchange.com/questions/5036/how-to-prevent-latex-from-hyphenating-the-entire-document
+- \tolerance=1
+- \emergencystretch=\maxdimen
+- \hyphenpenalty=10000
+- \hbadness=10000
+
+# talen regelen
+# https://tex.stackexchange.com/questions/5036/how-to-prevent-latex-from-hyphenating-the-entire-document
+- \usepackage[lating=nohyphenation,dutch=nohyphenation]{hyphsubst}
+- \usepackage[dutch]{babel}
+
+# Geen paginanummer 
+- \pagenumbering{gobble} # weer aanzetten op eerste pagina van document
+
+# Bepaald het lettertype (font)
+# https://tug.org/FontCatalogue/mathfonts.html
+fontfamily: arev
+
+
+# https://bookdown.org/yihui/rmarkdown-cookbook/figure-placement.html
+output: 
+  pdf_document:
+    toc: true
+    extra_dependencies: ["flafter"]
+    fig_caption: yes
+    keep_tex: yes
+
+urlcolor: blue
+
+# zie voor wegschrijven naar andere map hieronder https://stackoverflow.com/questions/26174565/r-in-rstudio-how-do-i-make-knitr-output-to-a-different-folder-to-avoid-clutteri
+knit: (function(inputFile, encoding) {
+      out_dir <- "Rapporten";
+      rmarkdown::render(inputFile,
+                        encoding=encoding,
+                        output_dir=file.path(dirname(inputFile), out_dir))})
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+---
+
+\pagenumbering{arabic}
+\newpage
+
+
+```{r inladen-packages, echo=FALSE, warning=FALSE, results=FALSE, message=FALSE}
+# 
+if (!require("pacman")) install.packages("pacman")
+pacman::p_load(Rmisc, fancyhdr)
+pacman::p_load(tidyverse, ggplot2, rmarkdown, knitr, tinytex, pander)
+```
+
+
+```{r kleurfunctie, echo=FALSE, warning=FALSE, results=FALSE, message=FALSE}
+# Deze functie zorgt er voor dat kleuren in zowel pdf als html goed staan
+#   bron https://bookdown.org/yihui/rmarkdown-cookbook/font-color.html
+# Het kleurenpallet is hier te vinden (standaard is xcolor-pallet) :
+#   https://www.garrickadenbuie.com/blog/colors-of-xcolor/
+colorize <- function(x, color) {
+  if (knitr::is_latex_output()) {
+    sprintf("\\textcolor{%s}{%s}", color, x)
+  } else if (knitr::is_html_output()) {
+    sprintf("<span style='color: %s;'>%s</span>", color,
+      x)
+  } else x
+}
+```
+
+
+
+# `r colorize("1. Inleiding", "blue")`
+Sinds 2017 verzamelen vrijwilligers zwerfafval in de gemeente De Bilt. De gegevens komen via de app Litterati en de website Zwerfafvalkompas beschikbaar voor analyses. Op nationaal niveau zijn de gegevens al gebruikt om inzicht te krijgen in veranderingen in wat mensen op straat en in de natuur achterlaten. 
+
+Deze rapportage laat zien hoeveel en welk type zwefafval afgelopen jaar (2023) is geraapt en welke ontwikkelingen er zijn sinds de start in 2017.
+
+De gemeente De Bilt en het bedrijf Sportief in het Groen willen daarnaast graag inzicht krijgen in de situatie in De Bilt op basis van de verzamelde gegevens. Waar zijn er hotspots, welk afval komt er voor en zijn er veranderingen te zien. Om te bekijken in hoeverre deze vragen kunnen worden beantwoord zijn de gegevens geanalyseerd van de afgelopen zeven jaar.
+
+
+# `r colorize("2. Aanpak", "blue")`
+De gegevens die verzameld zijn in de periode 1 januari 2017 tot en met 31 december 2023 zijn gedownload van de website Zwerfafvalkompas. De gegevens zijn met behulp van het opensoftwarepakket R bewerkt, verrijkt en geanalyseerd.  
+
+De gegevens zijn voorafgaande aan de analyse bewerkt. In het Zwerfafvalkompas zijn er zes niveaus: hoofdcategorie, categorie, subcategorie, object, materiaal en merk. Daarnaast is er een veld met opmerkingen en een veld met een ID van degene die het afval heeft geraapt. Bij elk van de niveaus zijn er meerdere typeringen. Om meer inzicht te krijgen, is eerst voor elk van de zes niveaus een vereenvoudigde typering gemaakt Hierbij zijn de op elkaar lijkende typeringen samengevoegd. Als voorbeeld, op het niveau van de hoofdcategorie zijn de typeringen ‘BlikOpStuk,Drinks’, ‘checked by Joyce,Drinks’, en ‘Drinks’ samengevoegd tot ‘drinks’. Uiteraard zijn er soms keuzes gemaakt waarover gediscusieerd kan worden. Aaangezien alles is vastgelegd in script, is ten eerste makkelijk te achterhalen welke keuzes zijn gemaakt. Ten tweede kunnen hierdoor keuzes eenvoudig worden gewijzigd als dit nodig is of gewenst is.
+
+De verrijking bestaat uit het toevoegen van informatie over de vindplaats. Dit betreft zowel de naam de de gemeente, als de wijk binnen een gemeente. De gemeente De Bilt bestaat uit zeven wijken. Elk wijk bestaat uit meerdere buurten. In totaal zijn er 24 buurten in de gemeente De Bilt. De informatie is verkregen door een overlay van de coördinaten beschikbaar voor elk stuk afval in het Zwerfafvalkompas en de GIS-kaart met informatie over gemeenten en buurten van het [CBS](https://www.cbs.nl/nl-nl/dossier/nederland-regionaal/geografische-data/wijk-en-buurtkaart-2023). Voor de analyse zijn een aantal van de buurten samengevoegde tot wijken:
+Bilthoven Noord: Bilthoven Noord I, Bilthoven Noord II, De Leijen, Soestdijkerweg en omgeving, Ridderoordsche Bossen
+Bilthoven Zuid: Brandenburg, Tuindorp, Bilthoven Centrum, Noord Houdringe, Overbosch, Larenstein
+De Bilt: De Bilt Oost, De Bilt West, De Bilt Zuid, Weltevreden, Beerschoten-Oostbroek
+Groenekan: Groenekan Buitengebied, Groenekan Kern
+Hollandsche Rading: Hollandsche Rading Kern, Hollandsche Rading Buitengebied
+Maartensdijk: Maartensdijk Buitengebied, Maartensdijk Kern, Industrieweg-Tolakkerweg
+Westbroek: Westbroek Buitengebied, Westbroek Kern
+Afvalstukken met x,y-coördinaten in wijken van omliggende gemeente zijn samengevoegd tot de wijk ‘Anders’. 
+
+
+### 1.1.1 Extra info
+\lipsum[1][11-15]
+
+
+```{r toelichting01-nieuwe-alineas, echo = FALSE}
+# Deze tekst verschijnt niet in het document
+# Voorbeeld van nieuwe alinea
+```
+Alinea's
+
+*Deze tekst is in `r colorize("italic", "red")`*. 
+
+**Deze tekst is vet**
+
+***Deze tekst is beide*** 
+
+```{r toelichting02-nieuwe-regels, echo=FALSE}
+# Voorbeeld van beginnen op nieuwe regel
+```
+Nieuw regels  
+*Deze tekst is in italic*.  
+**Deze tekst is vet**  
+***Deze tekst is beide*** 
+
+```{r toelichting03-doorlopende_tekst, echo=FALSE}
+# Voorbeeld van doorlopende tekst (geen of slechts één spatie na eerste regel)
+```
+Doorlopende tekst
+*Deze tekst is in italic*.
+**Deze tekst is vet**
+***Deze tekst is beide*** 
+
+```{r toelichting04-referenties, echo = FALSE}
+# Hieronder een verwijzing naar de pagina waar alle informatie staat
+```
+
+Deze informatie is te vinden in [Rstudie Markdown](https://rmarkdown.rstudio.com/articles_intro.html).
+
+Voor speciale tekens kun je het best [hier](https://inbo.github.io/tutorials/tutorials/r_beginners/src/Rmarkdown.pdf) zijn. Deze tekst is bovendien in het Nederlands.
+
+Zeer uitgebreide informatie in het Engels is te vinden in [The Definive Guide](https://bookdown.org/yihui/rmarkdown/).
+
+ 
+```{r toelichting05-speciale-layouts, echo = FALSE}
+# Hieronder het gebruik van speciale layout zaken
+```
+
+Dit is een lijst met opsommingen
+
+ * item 1
+ * item 2
+ * item 3
+
+superscript: 10^2^
+subscript:  H~2~O
+
+Oefenen met formules  
+$$
+A = \pi \times r^{2}
+$$
+Er hier nog een meer gecompliceerde formule  
+$$
+x = \frac{-b \pm \sqrt{b^2 - 4ac}}{2a}
+$$
+
+Uiteraard kunnen we ook plaatjes maken:
+
+```{r Figuur-iris, echo=FALSE, warning=FALSE, fig.cap = "Histogram lengte van kelkblad", fig.width = 6}  
+ggplot(iris, aes(x = Sepal.Length)) + geom_histogram(bins=20)
+
+```
+
+
+En behoren ook tabellen tot de mogelijkheden    
+```{r chunckopties, results="hide", echo = FALSE}
+# Onderstaande commando worden wel uitgevoerd in R maar verschijnen niet in het PDF-document
+# Lees meer in https://bookdown.org/yihui/rmarkdown-cookbook/hide-one.html
+str(iris)
+```
+
+
+```{r Tabel-iris, echo=FALSE, warning=FALSE}
+kable(iris[1:10,], caption = "De eerste 10 rijen van de iris dataset")
+
+```
+
+\lipsum[10]
+
+```{r landscape, echo=FALSE}
+# Onderstaande geeft een foutmelding voor zowel het pakket 'geometry' als 'typearea'. 
+# Het is nog niet gelukt om dit op te lossen.
+```
+
+\clearpage
+\KOMAoptions{paper=landscape,DIV=last}
+\newgeometry{hmargin=30mm, bottom=20mm, includehead}
+\fancyheadoffset{0pt}
+
+## Een landscapepagina met plot 
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+
+\clearpage
+\KOMAoptions{paper=portrait,DIV=last}
+\restoregeometry
+\fancyheadoffset{0pt}
+
+\lipsum[40]
